@@ -1,6 +1,6 @@
 #include "adc.h"
 
-ADC_HandleTypeDef hadc1;
+/* hadc1 is owned by main.c in this reference firmware. */
 
 void ADC1_UserInit(void)
 {
