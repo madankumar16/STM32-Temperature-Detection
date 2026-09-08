@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850">
+<rect width="1400" height="850" fill="#0b1d2a"/>
+<g stroke="#59d8ff" fill="none" stroke-width="3">
+<rect x="40" y="35" width="1320" height="780" rx="8"/>
+<path d="M40 110H1360M300 35V110M1100 35V110" opacity=".5"/>
+<rect x="480" y="275" width="440" height="260" rx="12"/>
+<rect x="525" y="330" width="350" height="150" rx="8"/>
+<rect x="80" y="235" width="250" height="140" rx="10"/>
+<rect x="1020" y="210" width="270" height="150" rx="10"/>
+<rect x="1010" y="485" width="280" height="120" rx="10"/>
+<rect x="90" y="540" width="240" height="110" rx="10"/>
+<path d="M330 305H480M920 330H1020M920 470L1010 545M700 535V680H330M700 680H1150V605"/>
+<path d="M650 275V180H205V235M760 275V170H1155V210"/>
+<circle cx="480" cy="305" r="5" fill="#59d8ff"/><circle cx="920" cy="330" r="5" fill="#59d8ff"/><circle cx="700" cy="535" r="5" fill="#59d8ff"/>
+</g>
+<g fill="#bdefff" font-family="Arial, sans-serif">
+<text x="70" y="82" font-size="34" font-weight="bold">STM32 TEMPERATURE DETECTION — SYSTEM BLUEPRINT</text>
+<text x="70" y="160" font-size="20">STM32F103C8T6 • LM35 • 16×2 LCD • HIGH-TEMP ALARM</text>
+<text x="545" y="315" font-size="28" font-weight="bold">STM32F103C8T6</text>
+<text x="560" y="365" font-size="20">ADC1_IN0 / PA0</text>
+<text x="560" y="400" font-size="20">GPIO LCD control</text>
+<text x="560" y="435" font-size="20">PB0 → Buzzer</text>
+<text x="560" y="470" font-size="20">PB1 → Alarm LED</text>
+<text x="110" y="275" font-size="27" font-weight="bold">LM35 SENSOR</text>
+<text x="110" y="315" font-size="18">10 mV / °C</text>
+<text x="110" y="345" font-size="18">VOUT → PA0</text>
+<text x="1060" y="255" font-size="27" font-weight="bold">16×2 LCD</text>
+<text x="1060" y="295" font-size="18">RS → PB12</text>
+<text x="1060" y="325" font-size="18">E → PB13</text>
+<text x="1050" y="530" font-size="27" font-weight="bold">BUZZER</text>
+<text x="1050" y="565" font-size="18">PB0 • HIGH TEMP</text>
+<text x="125" y="585" font-size="27" font-weight="bold">RED LED</text>
+<text x="125" y="620" font-size="18">PB1 • 220 Ω</text>
+<text x="480" y="735" font-size="22">Signal flow: LM35 → ADC → Temperature calculation → LCD</text>
+<text x="480" y="770" font-size="22">Alarm: Temperature ≥ 50 °C → Buzzer + LED ON</text>
+<text x="1160" y="780" font-size="16">REV 1.0</text>
+</g>
+</svg>
