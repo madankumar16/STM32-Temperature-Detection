@@ -1,0 +1,22 @@
+# STM32CubeMX configuration reference
+# MCU: STM32F103C8Tx
+#
+# Pin configuration used by the source files:
+# PA0  = ADC1_IN0 (LM35 analog input)
+# PA8  = GPIO_Output (LCD D6)
+# PA9  = GPIO_Output (LCD D7)
+# PA13 = SYS_SWDIO
+# PA14 = SYS_SWCLK
+# PB0  = GPIO_Output (Buzzer)
+# PB1  = GPIO_Output (Alarm LED)
+# PB12 = GPIO_Output (LCD RS)
+# PB13 = GPIO_Output (LCD E)
+# PB14 = GPIO_Output (LCD D4)
+# PB15 = GPIO_Output (LCD D5)
+#
+# ADC1: 12-bit, single conversion, software trigger, right aligned,
+# sampling time 71.5 cycles, channel 0.
+#
+# This file is a human-readable configuration reference. Recreate/import
+# the MCU configuration in STM32CubeMX/CubeIDE if a fully generated
+# .ioc format is required by your IDE version.
