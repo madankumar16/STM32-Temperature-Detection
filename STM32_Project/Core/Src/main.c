@@ -4,7 +4,6 @@
 #include "buzzer.h"
 #include "led.h"
 #include <stdio.h>
-#include <string.h>
 
 ADC_HandleTypeDef hadc1;
 
@@ -120,9 +119,7 @@ static void MX_GPIO_Init(void)
 void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
 {
     if (adcHandle->Instance == ADC1)
-    {
         __HAL_RCC_ADC1_CLK_ENABLE();
-    }
 }
 
 void Error_Handler(void)
@@ -130,9 +127,7 @@ void Error_Handler(void)
     __disable_irq();
     while (1)
     {
-        LED_On();
-        HAL_Delay(200);
-        LED_Off();
+        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_1);
         HAL_Delay(200);
     }
 }
