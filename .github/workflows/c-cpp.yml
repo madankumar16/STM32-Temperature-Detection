@@ -1,4 +1,4 @@
-name: C/C++ CI
+name: Project CI
 
 on:
   push:
@@ -7,17 +7,53 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-
+  python-diagnostics:
+    name: Python diagnostics
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check Python syntax
+        run: python -m compileall -q AI_Diagnostics
+
+      - name: Run diagnostic smoke tests
+        working-directory: AI_Diagnostics
+        run: |
+          python diagnostic_engine.py --temperature 37.2 --raw 462
+          python diagnostic_engine.py --temperature 30.0 --raw 372
+          python diagnostic_engine.py --temperature 45.0 --raw 558
+          python diagnostic_engine.py --temperature 37.2 --raw 0
+          python diagnostic_engine.py --temperature 37.2 --raw 4095
+
+      - name: Validate expected diagnostic results
+        working-directory: AI_Diagnostics
+        run: |
+          python - <<'PY'
+          from diagnostic_engine import diagnose
+
+          checks = [
+              (37.2, 462, "NORMAL"),
+              (30.0, 372, "LOW_TEMPERATURE"),
+              (45.0, 558, "HIGH_TEMPERATURE"),
+              (37.2, 0, "SENSOR_LOW_OR_DISCONNECTED"),
+              (37.2, 4095, "SENSOR_HIGH_OR_SHORT"),
+              (-1.0, 100, "TEMPERATURE_OUT_OF_RANGE"),
+              (81.0, 100, "TEMPERATURE_OUT_OF_RANGE"),
+          ]
+
+          for temperature, raw, expected in checks:
+              result = diagnose(temperature, raw)
+              assert result.fault == expected, (
+                  f"{temperature=} {raw=}: expected {expected}, "
+                  f"got {result.fault}"
+              )
+
+          print(f"All {len(checks)} diagnostic cases passed.")
+          PY
