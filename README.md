@@ -6,6 +6,7 @@ STM32F103C8T6 (Blue Pill) based temperature monitoring system using an LM35 anal
 - LM35 temperature sensing through ADC1 channel 0 (PA0)
 - Real-time temperature display on 16x2 HD44780 LCD
 - High-temperature alarm using buzzer and red LED
+- Fail-safe buzzer/LED alert when an ADC read fails or the LM35 signal appears disconnected/shorted
 - Modular C drivers for LM35, LCD, LED, and buzzer
 - Designed for STM32CubeIDE / STM32 HAL
 
@@ -75,10 +76,13 @@ LICENSE
 ```
 
 ## Build
-1. Open the project in STM32CubeIDE.
-2. Set up ADC1 on PA0 as a single regular conversion, 12-bit, software triggered.
-3. Configure PB0/PB1 as GPIO outputs.
-4. Configure LCD GPIO pins as push-pull outputs.
-5. Build and flash with ST-Link.
+This repository contains the application C sources and a human-readable pin/configuration reference; it is not a complete CubeIDE-importable project by itself.
 
-> The `.ioc` file is a configuration reference. CubeMX-generated startup and HAL source files are intentionally not duplicated here.
+1. In STM32CubeIDE, create a project for **STM32F103C8T6** (the Blue Pill target) or open your existing generated project.
+2. Configure ADC1 channel 0 on PA0 as a single, software-triggered 12-bit conversion.
+3. Configure PB0/PB1 and the LCD pins as GPIO outputs, and keep PA13/PA14 available for SWD.
+4. Add the files in `STM32_Project/Core/Src` and the `STM32_Project/Drivers/*` C/header folders to your generated project. Add the driver folders to the compiler include paths.
+5. Use the `stm32f1xx_hal_conf.h` in `STM32_Project/Core/Inc` or merge its enabled module settings into your generated HAL configuration.
+6. Build in STM32CubeIDE and flash with ST-Link. Verify sensor thresholds and wiring on the actual board before relying on the alarm.
+
+> `STM32_Temperature.ioc` is a human-readable pin/configuration reference, not a CubeMX-generated `.ioc` file. The startup code, linker script, and vendor HAL sources are intentionally not vendored into this repository. GitHub Actions compile-checks the C sources against vendor headers, but does not link a firmware image or replace hardware testing.
