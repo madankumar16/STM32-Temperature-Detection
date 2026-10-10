@@ -2,37 +2,27 @@ name: Project CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
+
+permissions:
+  contents: read
 
 jobs:
   python-diagnostics:
     name: Python diagnostics
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Check Python syntax
+      - name: Compile Python syntax
         run: python -m compileall -q AI_Diagnostics
-
-      - name: Run diagnostic smoke tests
-        working-directory: AI_Diagnostics
-        run: |
-          python diagnostic_engine.py --temperature 37.2 --raw 462
-          python diagnostic_engine.py --temperature 30.0 --raw 372
-          python diagnostic_engine.py --temperature 45.0 --raw 558
-          python diagnostic_engine.py --temperature 37.2 --raw 0
-          python diagnostic_engine.py --temperature 37.2 --raw 4095
-
-      - name: Validate expected diagnostic results
+      - name: Run diagnostic unit checks
         working-directory: AI_Diagnostics
         run: |
           python - <<'PY'
@@ -47,13 +37,46 @@ jobs:
               (-1.0, 100, "TEMPERATURE_OUT_OF_RANGE"),
               (81.0, 100, "TEMPERATURE_OUT_OF_RANGE"),
           ]
-
           for temperature, raw, expected in checks:
-              result = diagnose(temperature, raw)
-              assert result.fault == expected, (
-                  f"{temperature=} {raw=}: expected {expected}, "
-                  f"got {result.fault}"
+              actual = diagnose(temperature, raw).fault
+              assert actual == expected, (
+                  f"temperature={temperature}, raw={raw}: "
+                  f"expected {expected}, got {actual}"
               )
-
           print(f"All {len(checks)} diagnostic cases passed.")
           PY
+      - name: CLI smoke checks
+        working-directory: AI_Diagnostics
+        run: |
+          python diagnostic_engine.py --temperature 37.2 --raw 462
+          python diagnostic_engine.py --temperature 30.0 --raw 372
+          python diagnostic_engine.py --temperature 45.0 --raw 558
+          python diagnostic_engine.py --temperature 37.2 --raw 0
+          python diagnostic_engine.py --temperature 37.2 --raw 4095
+
+  firmware-source-check:
+    name: STM32 source and configuration checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Verify firmware source files
+        run: |
+          test -f STM32_Project/Core/Src/main.c
+          test -f STM32_Project/Core/Inc/main.h
+          test -f STM32_Project/Drivers/LM35/lm35.c
+          test -f STM32_Project/Drivers/LM35/lm35.h
+          test -f STM32_Project/Drivers/LCD/lcd.c
+          test -f STM32_Project/Drivers/LCD/lcd.h
+          test -f STM32_Project/Drivers/Buzzer/buzzer.c
+          test -f STM32_Project/Drivers/Buzzer/buzzer.h
+          test -f STM32_Project/Drivers/LED/led.c
+          test -f STM32_Project/Drivers/LED/led.h
+          test -f STM32_Project/STM32_Temperature.ioc
+      - name: Check project pin mapping and ADC configuration
+        run: |
+          grep -q 'ADC_CHANNEL_0' STM32_Project/Core/Src/main.c
+          grep -q 'GPIO_PIN_0' STM32_Project/Core/Src/main.c
+          grep -q 'LM35_ADC_MAX_VALUE' STM32_Project/Drivers/LM35/lm35.h
+          grep -q 'PA0.*ADC1_IN0' STM32_Project/STM32_Temperature.ioc
+          grep -q 'PB0.*GPIO_Output (Buzzer)' STM32_Project/STM32_Temperature.ioc
