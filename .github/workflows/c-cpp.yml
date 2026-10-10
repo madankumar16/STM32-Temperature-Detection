@@ -80,3 +80,54 @@ jobs:
           grep -q 'LM35_ADC_MAX_VALUE' STM32_Project/Drivers/LM35/lm35.h
           grep -q 'PA0.*ADC1_IN0' STM32_Project/STM32_Temperature.ioc
           grep -q 'PB0.*GPIO_Output (Buzzer)' STM32_Project/STM32_Temperature.ioc
+
+  stm32-firmware-syntax:
+    name: STM32 firmware compile check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Checkout STM32 HAL
+        uses: actions/checkout@v4
+        with:
+          repository: STMicroelectronics/stm32f1xx_hal_driver
+          path: third_party/hal
+
+      - name: Checkout STM32 device headers
+        uses: actions/checkout@v4
+        with:
+          repository: STMicroelectronics/cmsis_device_f1
+          path: third_party/device
+
+      - name: Checkout CMSIS core headers
+        uses: actions/checkout@v4
+        with:
+          repository: ARM-software/CMSIS_5
+          path: third_party/CMSIS_5
+
+      - name: Install ARM GNU compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi
+
+      - name: Compile-check project C sources
+        run: |
+          arm-none-eabi-gcc \
+            -fsyntax-only \
+            -mcpu=cortex-m3 -mthumb -std=gnu11 \
+            -Wall -Wextra \
+            -DUSE_HAL_DRIVER -DSTM32F103xB \
+            -I STM32_Project/Core/Inc \
+            -I STM32_Project/Drivers/LM35 \
+            -I STM32_Project/Drivers/LCD \
+            -I STM32_Project/Drivers/Buzzer \
+            -I STM32_Project/Drivers/LED \
+            -I third_party/hal/Inc \
+            -I third_party/device/Include \
+            -I third_party/CMSIS_5/CMSIS/Core/Include \
+            STM32_Project/Core/Src/main.c \
+            STM32_Project/Drivers/LM35/lm35.c \
+            STM32_Project/Drivers/LCD/lcd.c \
+            STM32_Project/Drivers/Buzzer/buzzer.c \
+            STM32_Project/Drivers/LED/led.c

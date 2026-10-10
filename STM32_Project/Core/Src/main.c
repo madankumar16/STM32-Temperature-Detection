@@ -10,6 +10,7 @@ ADC_HandleTypeDef hadc1;
 static void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
+static void FormatTemperature(char *buffer, size_t buffer_size, float temperature);
 
 int main(void)
 {
@@ -29,21 +30,39 @@ int main(void)
     while (1)
     {
         char line[17];
-        float temperature = LM35_ReadTemperatureC();
+        uint32_t raw = LM35_ReadRaw();
+        int sensor_fault = (raw <= LM35_SENSOR_LOW_RAW_THRESHOLD ||
+                            raw >= LM35_SENSOR_HIGH_RAW_THRESHOLD);
+        float temperature = LM35_ConvertRawToTemperatureC(raw);
 
-        LCD_SetCursor(1, 0);
-        snprintf(line, sizeof(line), "%6.1f C       ", temperature);
-        LCD_Print(line);
-
-        if (temperature >= LM35_ALARM_THRESHOLD_C)
+        if (sensor_fault)
         {
+            LCD_SetCursor(0, 0);
+            LCD_Print("SENSOR FAULT    ");
+            LCD_SetCursor(1, 0);
+            LCD_Print("Check LM35      ");
+            /* Fail safe: warn if the sensor or ADC reading is invalid. */
             LED_On();
             Buzzer_On();
         }
         else
         {
-            LED_Off();
-            Buzzer_Off();
+            LCD_SetCursor(0, 0);
+            LCD_Print("Temperature:    ");
+            LCD_SetCursor(1, 0);
+            FormatTemperature(line, sizeof(line), temperature);
+            LCD_Print(line);
+
+            if (temperature >= LM35_ALARM_THRESHOLD_C)
+            {
+                LED_On();
+                Buzzer_On();
+            }
+            else
+            {
+                LED_Off();
+                Buzzer_Off();
+            }
         }
 
         HAL_Delay(500);
@@ -122,9 +141,18 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
         __HAL_RCC_ADC1_CLK_ENABLE();
 }
 
+static void FormatTemperature(char *buffer, size_t buffer_size, float temperature)
+{
+    /* Use integer formatting so newlib-nano does not need printf float support. */
+    uint32_t tenths = (uint32_t)(temperature * 10.0f + 0.5f);
+    snprintf(buffer, buffer_size, "%3lu.%lu C         ",
+             (unsigned long)(tenths / 10U),
+             (unsigned long)(tenths % 10U));
+}
+
 void Error_Handler(void)
 {
-    __disable_irq();
+    /* Keep interrupts enabled because HAL_Delay relies on the SysTick interrupt. */
     while (1)
     {
         HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_1);
