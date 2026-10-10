@@ -30,21 +30,39 @@ int main(void)
     while (1)
     {
         char line[17];
-        float temperature = LM35_ReadTemperatureC();
+        uint32_t raw = LM35_ReadRaw();
+        int sensor_fault = (raw <= LM35_SENSOR_LOW_RAW_THRESHOLD ||
+                            raw >= LM35_SENSOR_HIGH_RAW_THRESHOLD);
+        float temperature = LM35_ConvertRawToTemperatureC(raw);
 
-        LCD_SetCursor(1, 0);
-        FormatTemperature(line, sizeof(line), temperature);
-        LCD_Print(line);
-
-        if (temperature >= LM35_ALARM_THRESHOLD_C)
+        if (sensor_fault)
         {
+            LCD_SetCursor(0, 0);
+            LCD_Print("SENSOR FAULT    ");
+            LCD_SetCursor(1, 0);
+            LCD_Print("Check LM35      ");
+            /* Fail safe: warn if the sensor or ADC reading is invalid. */
             LED_On();
             Buzzer_On();
         }
         else
         {
-            LED_Off();
-            Buzzer_Off();
+            LCD_SetCursor(0, 0);
+            LCD_Print("Temperature:    ");
+            LCD_SetCursor(1, 0);
+            FormatTemperature(line, sizeof(line), temperature);
+            LCD_Print(line);
+
+            if (temperature >= LM35_ALARM_THRESHOLD_C)
+            {
+                LED_On();
+                Buzzer_On();
+            }
+            else
+            {
+                LED_Off();
+                Buzzer_Off();
+            }
         }
 
         HAL_Delay(500);
