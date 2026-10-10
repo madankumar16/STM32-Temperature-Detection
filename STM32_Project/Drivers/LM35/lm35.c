@@ -9,22 +9,33 @@ void LM35_Init(ADC_HandleTypeDef *hadc)
 
 uint32_t LM35_ReadRaw(void)
 {
-    uint32_t value = 0;
+    uint32_t value;
 
     if (lm35_adc == NULL)
-        return 0;
+        return UINT32_MAX;
 
-    HAL_ADC_Start(lm35_adc);
-    if (HAL_ADC_PollForConversion(lm35_adc, 100) == HAL_OK)
+    if (HAL_ADC_Start(lm35_adc) != HAL_OK)
+        return UINT32_MAX;
+
+    if (HAL_ADC_PollForConversion(lm35_adc, 100U) == HAL_OK)
         value = HAL_ADC_GetValue(lm35_adc);
-    HAL_ADC_Stop(lm35_adc);
+    else
+        value = UINT32_MAX;
+
+    if (HAL_ADC_Stop(lm35_adc) != HAL_OK)
+        return UINT32_MAX;
 
     return value;
 }
 
+float LM35_ConvertRawToTemperatureC(uint32_t raw)
+{
+    float voltage = ((float)raw * LM35_ADC_REFERENCE_VOLT) /
+                    LM35_ADC_MAX_VALUE;
+    return voltage * 100.0f;
+}
+
 float LM35_ReadTemperatureC(void)
 {
-    uint32_t raw = LM35_ReadRaw();
-    float voltage = ((float)raw * LM35_ADC_REFERENCE_VOLT) / LM35_ADC_MAX_VALUE;
-    return voltage * 100.0f;
+    return LM35_ConvertRawToTemperatureC(LM35_ReadRaw());
 }
