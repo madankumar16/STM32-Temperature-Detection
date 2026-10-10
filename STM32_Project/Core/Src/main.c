@@ -10,6 +10,7 @@ ADC_HandleTypeDef hadc1;
 static void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
+static void FormatTemperature(char *buffer, size_t buffer_size, float temperature);
 
 int main(void)
 {
@@ -32,7 +33,7 @@ int main(void)
         float temperature = LM35_ReadTemperatureC();
 
         LCD_SetCursor(1, 0);
-        snprintf(line, sizeof(line), "%6.1f C       ", temperature);
+        FormatTemperature(line, sizeof(line), temperature);
         LCD_Print(line);
 
         if (temperature >= LM35_ALARM_THRESHOLD_C)
@@ -122,9 +123,18 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
         __HAL_RCC_ADC1_CLK_ENABLE();
 }
 
+static void FormatTemperature(char *buffer, size_t buffer_size, float temperature)
+{
+    /* Use integer formatting so newlib-nano does not need printf float support. */
+    uint32_t tenths = (uint32_t)(temperature * 10.0f + 0.5f);
+    snprintf(buffer, buffer_size, "%3lu.%lu C         ",
+             (unsigned long)(tenths / 10U),
+             (unsigned long)(tenths % 10U));
+}
+
 void Error_Handler(void)
 {
-    __disable_irq();
+    /* Keep interrupts enabled because HAL_Delay relies on the SysTick interrupt. */
     while (1)
     {
         HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_1);
