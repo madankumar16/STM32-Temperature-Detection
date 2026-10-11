@@ -97,7 +97,7 @@ def optional_openai_explanation(prompt: str) -> Optional[str]:
         from openai import OpenAI
         client = OpenAI()
         response = client.responses.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-5.6-mini"),
+            model=os.getenv("OPENAI_MODEL", "gpt-5.6-luna"),
             input=prompt,
         )
         return response.output_text
