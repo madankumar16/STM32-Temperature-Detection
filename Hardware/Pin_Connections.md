@@ -3,7 +3,7 @@
 ## LM35
 | LM35 pin | Connect to |
 |---|---|
-| VCC | 3.3 V |
+| VCC | 5 V (Blue Pill 5V pin). The LM35 needs at least 4 V. Its output (10 mV/°C) stays well below 3.3 V. |
 | VOUT | PA0 / ADC1_IN0 |
 | GND | GND |
 
