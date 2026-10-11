@@ -19,6 +19,10 @@ int main(void)
     MX_GPIO_Init();
     MX_ADC1_Init();
 
+    /* The STM32F1 ADC must be calibrated once after power-up,
+     * otherwise every reading carries an offset error. */
+    if (HAL_ADCEx_Calibration_Start(&hadc1) != HAL_OK) Error_Handler();
+
     LCD_Init();
     Buzzer_Init();
     LED_Init();
@@ -26,6 +30,8 @@ int main(void)
 
     LCD_SetCursor(0, 0);
     LCD_Print("Temperature:");
+
+    int alarm_active = 0;
 
     while (1)
     {
@@ -42,6 +48,7 @@ int main(void)
             LCD_SetCursor(1, 0);
             LCD_Print("Check LM35      ");
             /* Fail safe: warn if the sensor or ADC reading is invalid. */
+            alarm_active = 1;
             LED_On();
             Buzzer_On();
         }
@@ -53,7 +60,14 @@ int main(void)
             FormatTemperature(line, sizeof(line), temperature);
             LCD_Print(line);
 
+            /* Hysteresis stops the buzzer chattering when the
+             * temperature sits right at the threshold. */
             if (temperature >= LM35_ALARM_THRESHOLD_C)
+                alarm_active = 1;
+            else if (temperature < LM35_ALARM_THRESHOLD_C - LM35_ALARM_HYSTERESIS_C)
+                alarm_active = 0;
+
+            if (alarm_active)
             {
                 LED_On();
                 Buzzer_On();
@@ -143,11 +157,20 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
 
 static void FormatTemperature(char *buffer, size_t buffer_size, float temperature)
 {
-    /* Use integer formatting so newlib-nano does not need printf float support. */
+    /* Use integer formatting so newlib-nano does not need printf float support.
+     * Clamp so an out-of-range value can never wrap or overflow the 16-char line. */
+    if (temperature < 0.0f) temperature = 0.0f;
+    if (temperature > 999.9f) temperature = 999.9f;
     uint32_t tenths = (uint32_t)(temperature * 10.0f + 0.5f);
-    snprintf(buffer, buffer_size, "%3lu.%lu C         ",
-             (unsigned long)(tenths / 10U),
-             (unsigned long)(tenths % 10U));
+    int len = snprintf(buffer, buffer_size, "%lu.%lu C",
+                       (unsigned long)(tenths / 10U),
+                       (unsigned long)(tenths % 10U));
+    if (len < 0)
+        len = 0;
+    /* Pad with spaces to the full LCD width so old characters are overwritten. */
+    for (size_t i = (size_t)len; i + 1U < buffer_size; ++i)
+        buffer[i] = ' ';
+    buffer[buffer_size - 1U] = '\0';
 }
 
 void Error_Handler(void)

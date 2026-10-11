@@ -73,6 +73,8 @@ jobs:
           test -f STM32_Project/Drivers/LED/led.c
           test -f STM32_Project/Drivers/LED/led.h
           test -f STM32_Project/STM32_Temperature.ioc
+          test -f STM32_Project/Core/Src/stm32f1xx_it.c
+          test -f STM32_Project/Makefile
       - name: Check project pin mapping and ADC configuration
         run: |
           grep -q 'ADC_CHANNEL_0' STM32_Project/Core/Src/main.c
@@ -82,7 +84,7 @@ jobs:
           grep -q 'PB0.*GPIO_Output (Buzzer)' STM32_Project/STM32_Temperature.ioc
 
   stm32-firmware-syntax:
-    name: STM32 firmware compile check
+    name: STM32 firmware build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout project
@@ -111,23 +113,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi
 
-      - name: Compile-check project C sources
-        run: |
-          arm-none-eabi-gcc \
-            -fsyntax-only \
-            -mcpu=cortex-m3 -mthumb -std=gnu11 \
-            -Wall -Wextra \
-            -DUSE_HAL_DRIVER -DSTM32F103xB \
-            -I STM32_Project/Core/Inc \
-            -I STM32_Project/Drivers/LM35 \
-            -I STM32_Project/Drivers/LCD \
-            -I STM32_Project/Drivers/Buzzer \
-            -I STM32_Project/Drivers/LED \
-            -I third_party/hal/Inc \
-            -I third_party/device/Include \
-            -I third_party/CMSIS_5/CMSIS/Core/Include \
-            STM32_Project/Core/Src/main.c \
-            STM32_Project/Drivers/LM35/lm35.c \
-            STM32_Project/Drivers/LCD/lcd.c \
-            STM32_Project/Drivers/Buzzer/buzzer.c \
-            STM32_Project/Drivers/LED/led.c
+      - name: Build and link firmware image
+        working-directory: STM32_Project
+        run: make
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: stm32-temperature-firmware
+          path: |
+            STM32_Project/build/stm32_temperature.bin
+            STM32_Project/build/stm32_temperature.hex
+            STM32_Project/build/stm32_temperature.elf

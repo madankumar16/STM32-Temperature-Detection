@@ -12,37 +12,68 @@
 
 #include <Arduino.h>
 
-const int TEMP_SENSOR_PIN = 34;
-const float ADC_REFERENCE_V = 3.3f;
-const int ADC_MAX = 4095;
-const float SENSOR_MV_PER_C = 10.0f;
+// ESP32 analog temperature/fault monitor.
+// Default LM35-style sensor input: GPIO34 (ADC1_CH6) on classic ESP32.
+const uint8_t TEMP_SENSOR_PIN = 34;
+const uint16_t ADC_MAX = 4095;
+const float SENSOR_MV_PER_C = 10.0f; // LM35: 10 mV per degree C.
 
-// Incubator operating limits; tune these after real measurements.
+// Prototype incubator limits. Calibrate these experimentally.
 const float MIN_VALID_TEMP_C = 0.0f;
 const float MAX_VALID_TEMP_C = 80.0f;
 const float LOW_TEMP_ALARM_C = 35.0f;
 const float HIGH_TEMP_ALARM_C = 40.0f;
 
-float readTemperatureC() {
-  const int samples = 10;
-  long total = 0;
-  for (int i = 0; i < samples; ++i) {
-    total += analogRead(TEMP_SENSOR_PIN);
-    delay(5);
+const uint8_t SAMPLE_COUNT = 10;
+const uint16_t SAMPLE_DELAY_MS = 5;
+
+struct TemperatureReading {
+  uint16_t raw;
+  uint32_t millivolts;
+  float temperatureC;
+};
+
+TemperatureReading readTemperature() {
+  uint32_t rawTotal = 0;
+  uint32_t mvTotal = 0;
+
+  for (uint8_t i = 0; i < SAMPLE_COUNT; ++i) {
+    rawTotal += analogRead(TEMP_SENSOR_PIN);
+    mvTotal += analogReadMilliVolts(TEMP_SENSOR_PIN);
+    delay(SAMPLE_DELAY_MS);
   }
 
-  float raw = total / (float)samples;
-  float voltage = (raw / ADC_MAX) * ADC_REFERENCE_V;
-  return (voltage * 1000.0f) / SENSOR_MV_PER_C;
+  TemperatureReading reading{};
+  reading.raw = static_cast<uint16_t>(rawTotal / SAMPLE_COUNT);
+  reading.millivolts = mvTotal / SAMPLE_COUNT;
+  reading.temperatureC = reading.millivolts / SENSOR_MV_PER_C;
+  return reading;
 }
 
-String classifyFault(float temperatureC, int raw) {
-  if (raw <= 5) return "SENSOR_LOW_OR_DISCONNECTED";
-  if (raw >= ADC_MAX - 5) return "SENSOR_HIGH_OR_SHORT";
-  if (temperatureC < MIN_VALID_TEMP_C || temperatureC > MAX_VALID_TEMP_C)
+const char* classifyFault(const TemperatureReading& reading) {
+  // These raw-value checks are prototype indicators only. A robust
+  // open-sensor diagnostic needs appropriate hardware validation.
+  if (reading.raw <= 5) {
+    return "SENSOR_LOW_OR_DISCONNECTED";
+  }
+
+  if (reading.raw >= ADC_MAX - 5) {
+    return "SENSOR_HIGH_OR_SHORT";
+  }
+
+  if (reading.temperatureC < MIN_VALID_TEMP_C ||
+      reading.temperatureC > MAX_VALID_TEMP_C) {
     return "TEMPERATURE_OUT_OF_RANGE";
-  if (temperatureC < LOW_TEMP_ALARM_C) return "LOW_TEMPERATURE";
-  if (temperatureC > HIGH_TEMP_ALARM_C) return "HIGH_TEMPERATURE";
+  }
+
+  if (reading.temperatureC < LOW_TEMP_ALARM_C) {
+    return "LOW_TEMPERATURE";
+  }
+
+  if (reading.temperatureC > HIGH_TEMP_ALARM_C) {
+    return "HIGH_TEMPERATURE";
+  }
+
   return "NORMAL";
 }
 
@@ -50,17 +81,25 @@ void setup() {
   Serial.begin(115200);
   analogReadResolution(12);
   pinMode(TEMP_SENSOR_PIN, INPUT);
+
+  // GPIO34 is ADC1 on the classic ESP32. 0 dB is suitable for the
+  // low-voltage LM35 range used by this prototype; change this setting
+  // if your sensor/interface produces a higher voltage.
+  analogSetPinAttenuation(TEMP_SENSOR_PIN, ADC_0db);
+
   delay(1000);
   Serial.println("ESP32_FAULT_MONITOR_READY");
 }
 
 void loop() {
-  int raw = analogRead(TEMP_SENSOR_PIN);
-  float temperatureC = readTemperatureC();
-  String fault = classifyFault(temperatureC, raw);
+  const TemperatureReading reading = readTemperature();
+  const char* fault = classifyFault(reading);
 
-  // Machine-readable CSV telemetry for Python.
-  Serial.printf("TEMP,%.2f,RAW,%d,FAULT,%s\n", temperatureC, raw, fault.c_str());
+  Serial.printf(
+      "TEMP,%.2f,RAW,%u,FAULT,%s\n",
+      reading.temperatureC,
+      reading.raw,
+      fault);
 
   delay(1000);
 }

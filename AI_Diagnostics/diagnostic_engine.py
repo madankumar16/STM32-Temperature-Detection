@@ -9,13 +9,14 @@ Input examples:
     python diagnostic_engine.py --temperature 32.4 --raw 401
     python diagnostic_engine.py --temperature 37.1 --raw 461
 
-For live ESP32 serial input, use --serial COM5 (Windows) or --serial /dev/ttyUSB0.
+Add --llm to request an optional LLM explanation (needs OPENAI_API_KEY).
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 from dataclasses import dataclass, asdict
 from typing import Optional
@@ -26,13 +27,17 @@ class Diagnosis:
     status: str
     fault: str
     severity: str
-    confidence: float
+    rule_strength: float  # fixed weight of the matching rule, not a measured probability
     probable_cause: str
     recommended_action: str
 
 
 def diagnose(temperature_c: float, raw: Optional[int] = None) -> Diagnosis:
     """Engineering-rule baseline used before any AI/LLM explanation."""
+    if not math.isfinite(temperature_c):
+        raise ValueError("temperature must be a finite number")
+    if raw is not None and not 0 <= raw <= 4095:
+        raise ValueError("raw ADC value must be between 0 and 4095")
     if raw is not None and raw <= 5:
         return Diagnosis("FAULT", "SENSOR_LOW_OR_DISCONNECTED", "HIGH", 0.98,
                          "Sensor signal is near zero or the sensor connection may be open.",
@@ -72,7 +77,7 @@ Temperature: {temperature_c:.2f} C
 ADC raw: {raw if raw is not None else 'not provided'}
 Rule-based status: {d.status}
 Fault classification: {d.fault}
-Confidence: {d.confidence:.2f}
+Rule strength: {d.rule_strength:.2f}
 Probable cause: {d.probable_cause}
 Recommended action: {d.recommended_action}
 
@@ -110,7 +115,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    diagnosis = diagnose(args.temperature, args.raw)
+    try:
+        diagnosis = diagnose(args.temperature, args.raw)
+    except ValueError as exc:
+        raise SystemExit(f"Invalid input: {exc}") from exc
     print(json.dumps(asdict(diagnosis), indent=2))
 
     if args.llm:

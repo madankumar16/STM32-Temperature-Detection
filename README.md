@@ -85,4 +85,24 @@ This repository contains the application C sources and a human-readable pin/conf
 5. Use the `stm32f1xx_hal_conf.h` in `STM32_Project/Core/Inc` or merge its enabled module settings into your generated HAL configuration.
 6. Build in STM32CubeIDE and flash with ST-Link. Verify sensor thresholds and wiring on the actual board before relying on the alarm.
 
-> `STM32_Temperature.ioc` is a human-readable pin/configuration reference, not a CubeMX-generated `.ioc` file. The startup code, linker script, and vendor HAL sources are intentionally not vendored into this repository. GitHub Actions compile-checks the C sources against vendor headers, but does not link a firmware image or replace hardware testing.
+> `STM32_Temperature.ioc` is a human-readable pin/configuration reference, not a CubeMX-generated `.ioc` file. If you merge these files into a CubeIDE project that already has `stm32f1xx_it.c`, keep only one copy of it.
+
+### Build from the command line (no IDE)
+
+With `arm-none-eabi-gcc` installed:
+
+```bash
+mkdir -p third_party
+git clone --depth 1 https://github.com/STMicroelectronics/stm32f1xx_hal_driver third_party/hal
+git clone --depth 1 https://github.com/STMicroelectronics/cmsis_device_f1      third_party/device
+git clone --depth 1 https://github.com/ARM-software/CMSIS_5                    third_party/CMSIS_5
+cd STM32_Project && make
+```
+
+This links a complete image (`build/stm32_temperature.bin`, about 11 KB) using ST's official startup file and linker script. GitHub Actions does the same on every push and attaches the firmware as a downloadable artifact. A successful build is not a substitute for testing on the real board.
+
+### Firmware behaviour
+
+- ADC is calibrated once at power-up, and each reading is the average of 16 conversions.
+- The alarm (LED + buzzer) turns on at 50.0 °C and turns off below 48.0 °C, so it doesn't chatter at the threshold.
+- A sensor fault (ADC near 0 or near full scale) shows `SENSOR FAULT` and sounds the alarm.
