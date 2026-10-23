@@ -12,7 +12,7 @@
 | 8 | Breadboard | 1 | Prototype assembly |
 | 9 | Jumper wires | As required | Male/female as needed |
 | 10 | ST-Link V2 | 1 | Programming/debugging |
-| 11 | 3.3V regulated supply | 1 | MCU supply; check peripherals before powering |
+| 11 | 3.3V regulated supply | 1 | MCU supply; check peripherals before powering. The LM35 is powered from the Blue Pill 5V pin (it needs at least 4 V) |
 
 ## Safety / power note
 The Blue Pill is a 3.3 V MCU board. Do not connect a 5 V signal directly to an STM32 GPIO. If the selected LCD or buzzer requires 5 V, verify its input thresholds and use suitable level shifting or a transistor driver where necessary.
