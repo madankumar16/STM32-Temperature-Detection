@@ -21,12 +21,12 @@
 
 | | Feature | How |
 |---|---|---|
-| 🌡️ | **Reads temperature** | LM35 on ADC1 channel 0 (PA0), 12-bit conversion |
+| 🌡️ | **Reads temperature** | LM35 on ADC1 channel 0 (PA0), 12-bit. The ADC is calibrated at power-up and each reading is the average of 16 samples |
 | 📟 | **Shows it live** | 16x2 LCD, updated every 500 ms |
-| 🚨 | **High-temperature alarm** | Red LED + buzzer turn on at **50 °C** (change it in `lm35.h`) |
-| 🛡️ | **Detects a broken sensor** | A raw ADC value near 0 or near 4095 means the wire is loose or shorted — the LCD shows `SENSOR FAULT` and the alarm turns on |
-| 🧩 | **Clean drivers** | One small module each for ADC, LM35, LCD, LED and buzzer |
-| ✅ | **Checked on every push** | GitHub Actions compiles the C code with `arm-none-eabi-gcc` and tests the Python fault rules |
+| 🚨 | **High-temperature alarm** | Red LED + buzzer turn on at **50.0 °C** and stay on until it drops **below 48.0 °C** (2 °C hysteresis, so no buzzer chatter). Change it in `App/temp_logic.h` |
+| 🛡️ | **Detects a broken sensor** | A raw ADC value of 5 or less, or 4090 or more, means the wire is loose or shorted — the LCD shows `SENSOR FAULT` and the alarm turns on. Once the sensor is OK again, the alarm simply follows the current temperature |
+| 🧩 | **Clean drivers** | One small module each for LM35, LCD, LED and buzzer, plus a hardware-free logic module (`App/temp_logic.c`) |
+| ✅ | **Checked on every push** | GitHub Actions runs the unit tests, builds and links the full firmware with `arm-none-eabi-gcc`, and tests the Python fault rules |
 
 ---
 
@@ -40,13 +40,17 @@
               │                       │
       LCD: "SENSOR FAULT"     Convert to °C, show on LCD
       LED + buzzer ON                 │
-                              ≥ 50 °C ? ── yes ──► LED + buzzer ON
-                                      └── no ───► LED + buzzer OFF
+                              ≥ 50.0 °C ? ── yes ──► LED + buzzer ON
+                              < 48.0 °C ? ── yes ──► LED + buzzer OFF
+                              in between  ─────────► keep what it was
 ```
+
+The alarm uses the same rounded value the LCD shows, so `50.0 C` on the screen always means the alarm is on.
 
 **The maths:**
 
 ```text
+ADC         = average of 16 readings
 Voltage     = ADC × 3.3 / 4095
 Temperature = Voltage × 100      (LM35 gives 10 mV per °C)
 ```
@@ -68,11 +72,12 @@ Temperature = Voltage × 100      (LM35 gives 10 mV per °C)
 
 | Signal | Pin | | Signal | Pin |
 |---|---|---|---|---|
-| LM35 OUT | PA0 | | LCD D4 | PB14 |
-| LCD RS | PB12 | | LCD D5 | PB15 |
-| LCD E | PB13 | | LCD D6 | PA8 |
-| Buzzer | PB0 | | LCD D7 | PA9 |
-| Red LED | PB1 | | SWDIO / SWCLK | PA13 / PA14 |
+| LM35 VCC | 5V (needs ≥ 4 V) | | LCD D4 | PB14 |
+| LM35 OUT | PA0 | | LCD D5 | PB15 |
+| LCD RS | PB12 | | LCD D6 | PA8 |
+| LCD E | PB13 | | LCD D7 | PA9 |
+| Buzzer | PB0 | | SWDIO / SWCLK | PA13 / PA14 |
+| Red LED | PB1 | | | |
 
 Full wiring: [`Hardware/Pin_Connections.md`](Hardware/Pin_Connections.md) · Parts list: [`Hardware/Bill_of_Materials.md`](Hardware/Bill_of_Materials.md)
 
@@ -80,14 +85,41 @@ Full wiring: [`Hardware/Pin_Connections.md`](Hardware/Pin_Connections.md) · Par
 
 ## 🚀 Build and flash
 
-> This repo holds the application code and drivers. The STM32 HAL, startup file and linker script come from STM32CubeIDE.
+### Option 1: command line (no IDE)
+
+With `arm-none-eabi-gcc` installed:
+
+```bash
+mkdir -p third_party
+git clone --depth 1 https://github.com/STMicroelectronics/stm32f1xx_hal_driver third_party/hal
+git clone --depth 1 https://github.com/STMicroelectronics/cmsis_device_f1      third_party/device
+git clone --depth 1 https://github.com/ARM-software/CMSIS_5                    third_party/CMSIS_5
+cd STM32_Project && make
+```
+
+This links a complete image (`build/stm32_temperature.bin`, about 11 KB) using ST's startup file and linker script. Flash it at `0x08000000` with ST-Link or STM32CubeProgrammer. GitHub Actions does the same build on every push and attaches the firmware as a downloadable artifact.
+
+### Option 2: STM32CubeIDE
 
 1. In **STM32CubeIDE**, create a project for **STM32F103C8T6**.
 2. Set **PA0** as ADC1 channel 0 (12-bit, software trigger).
 3. Set **PB0, PB1** and the LCD pins as GPIO outputs. Keep **PA13/PA14** free for SWD.
-4. Copy in `STM32_Project/Core/Src` and the `STM32_Project/Drivers/*` folders, and add the driver folders to the include paths.
+4. Copy in `STM32_Project/Core/Src`, `STM32_Project/App` and the `STM32_Project/Drivers/*` folders, and add `App` and the driver folders to the include paths.
 5. Build, then flash with ST-Link.
-6. Test the alarm on the real board before trusting it.
+
+> `STM32_Temperature.ioc` is a human-readable pin reference, not a CubeMX-generated file. If your CubeIDE project already has `stm32f1xx_it.c`, keep only one copy of it.
+
+Either way, test the alarm on the real board before trusting it.
+
+### 🧪 Unit tests
+
+The conversion, averaging, fault check and alarm hysteresis are plain C with no HAL, so they are tested on your PC with just `gcc`:
+
+```bash
+make -C STM32_Project test
+```
+
+The tests live in [`tests/test_temp_logic.c`](tests/test_temp_logic.c) and also run in CI on every push.
 
 ---
 
@@ -95,12 +127,15 @@ Full wiring: [`Hardware/Pin_Connections.md`](Hardware/Pin_Connections.md) · Par
 
 ```text
 STM32_Project/
-├── Core/Src/main.c          ← main loop: read, check, display, alarm
-└── Drivers/
-    ├── ADC/                 ← ADC setup and reads
-    ├── LM35/                ← raw value → °C, fault limits
-    ├── LCD/                 ← 16x2 LCD in 4-bit mode
-    ├── LED/  Buzzer/        ← alarm outputs
+├── Core/Src/main.c          ← main loop: read, display, drive the alarm
+├── Core/Src/stm32f1xx_it.c  ← interrupt handlers (SysTick)
+├── App/temp_logic.c         ← raw → °C, averaging, fault check, hysteresis (no HAL)
+├── Drivers/
+│   ├── LM35/                ← ADC sampling for the sensor
+│   ├── LCD/                 ← 16x2 LCD in 4-bit mode
+│   └── LED/  Buzzer/        ← alarm outputs
+└── Makefile                 ← command-line build + `make test`
+tests/                       ← host unit tests for App/temp_logic.c
 ESP32/                       ← same idea on ESP32, sends data over Serial
 AI_Diagnostics/              ← Python rules that name the fault type
 Documentation/  Hardware/    ← block diagram, circuit, parts, wiring
@@ -117,8 +152,6 @@ Documentation/  Hardware/    ← block diagram, circuit, parts, wiring
 
 ## 🗺️ Next steps
 
-- [ ] Average several ADC samples for smoother readings
-- [ ] Add hysteresis so the alarm doesn't flicker near 50 °C
 - [ ] Move the main loop to FreeRTOS tasks
 - [ ] Add photos and a demo video of the real board
 
