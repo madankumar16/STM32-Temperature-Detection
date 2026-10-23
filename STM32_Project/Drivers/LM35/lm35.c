@@ -7,12 +7,9 @@ void LM35_Init(ADC_HandleTypeDef *hadc)
     lm35_adc = hadc;
 }
 
-uint32_t LM35_ReadRaw(void)
+static uint32_t LM35_ReadSingle(void)
 {
     uint32_t value;
-
-    if (lm35_adc == NULL)
-        return UINT32_MAX;
 
     if (HAL_ADC_Start(lm35_adc) != HAL_OK)
         return UINT32_MAX;
@@ -26,6 +23,27 @@ uint32_t LM35_ReadRaw(void)
         return UINT32_MAX;
 
     return value;
+}
+
+/* Average LM35_SAMPLE_COUNT conversions to reduce noise.
+ * Returns UINT32_MAX if any conversion fails, which the caller
+ * treats as a sensor fault. */
+uint32_t LM35_ReadRaw(void)
+{
+    uint32_t total = 0U;
+
+    if (lm35_adc == NULL)
+        return UINT32_MAX;
+
+    for (uint32_t i = 0U; i < LM35_SAMPLE_COUNT; ++i)
+    {
+        uint32_t value = LM35_ReadSingle();
+        if (value == UINT32_MAX)
+            return UINT32_MAX;
+        total += value;
+    }
+
+    return (total + (LM35_SAMPLE_COUNT / 2U)) / LM35_SAMPLE_COUNT;
 }
 
 float LM35_ConvertRawToTemperatureC(uint32_t raw)
