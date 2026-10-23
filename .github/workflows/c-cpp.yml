@@ -79,7 +79,7 @@ jobs:
         run: |
           grep -q 'ADC_CHANNEL_0' STM32_Project/Core/Src/main.c
           grep -q 'GPIO_PIN_0' STM32_Project/Core/Src/main.c
-          grep -q 'LM35_ADC_MAX_VALUE' STM32_Project/Drivers/LM35/lm35.h
+          grep -q 'LM35_ADC_MAX_VALUE' STM32_Project/App/temp_logic.h
           grep -q 'PA0.*ADC1_IN0' STM32_Project/STM32_Temperature.ioc
           grep -q 'PB0.*GPIO_Output (Buzzer)' STM32_Project/STM32_Temperature.ioc
 

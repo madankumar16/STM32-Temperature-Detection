@@ -19,13 +19,13 @@ SIZE    = arm-none-eabi-size
 
 CPU     = -mcpu=cortex-m3 -mthumb
 DEFS    = -DUSE_HAL_DRIVER -DSTM32F103xB
-INCS    = -ICore/Inc -IDrivers/LM35 -IDrivers/LCD -IDrivers/Buzzer -IDrivers/LED \
+INCS    = -ICore/Inc -IApp -IDrivers/LM35 -IDrivers/LCD -IDrivers/Buzzer -IDrivers/LED \
           -I$(HAL_DIR)/Inc -I$(DEVICE_DIR)/Include -I$(CMSIS_DIR)/CMSIS/Core/Include
 CFLAGS  = $(CPU) $(DEFS) $(INCS) -std=gnu11 -Os -g -Wall -Wextra -ffunction-sections -fdata-sections
 LDFLAGS = $(CPU) -T$(DEVICE_DIR)/Source/Templates/gcc/linker/STM32F103XB_FLASH.ld \
           -specs=nano.specs -specs=nosys.specs -Wl,--gc-sections -Wl,-Map=$(BUILD)/$(TARGET).map
 
-APP_SRC = Core/Src/main.c Core/Src/stm32f1xx_it.c \
+APP_SRC = Core/Src/main.c Core/Src/stm32f1xx_it.c App/temp_logic.c \
           Drivers/LM35/lm35.c Drivers/LCD/lcd.c Drivers/Buzzer/buzzer.c Drivers/LED/led.c
 HAL_SRC = $(addprefix $(HAL_DIR)/Src/stm32f1xx_, hal.c hal_adc.c hal_adc_ex.c hal_cortex.c hal_dma.c \
           hal_flash.c hal_flash_ex.c hal_gpio.c hal_pwr.c hal_rcc.c hal_rcc_ex.c)

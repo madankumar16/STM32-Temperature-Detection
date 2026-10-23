@@ -3,14 +3,12 @@
 #include "lcd.h"
 #include "buzzer.h"
 #include "led.h"
-#include <stdio.h>
 
 ADC_HandleTypeDef hadc1;
 
 static void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
-static void FormatTemperature(char *buffer, size_t buffer_size, float temperature);
 
 int main(void)
 {
@@ -31,52 +29,43 @@ int main(void)
     LCD_SetCursor(0, 0);
     LCD_Print("Temperature:");
 
-    int alarm_active = 0;
+    TempAlarmState alarm_state;
+    TempLogic_Init(&alarm_state);
 
     while (1)
     {
-        char line[17];
-        uint32_t raw = LM35_ReadRaw();
-        int sensor_fault = (raw <= LM35_SENSOR_LOW_RAW_THRESHOLD ||
-                            raw >= LM35_SENSOR_HIGH_RAW_THRESHOLD);
-        float temperature = LM35_ConvertRawToTemperatureC(raw);
+        char line[TEMP_LCD_COLUMNS + 1U];
+        /* Conversion, fault check and alarm hysteresis live in
+         * App/temp_logic.c so they can be unit tested on a PC. */
+        TempStatus status = TempLogic_Update(&alarm_state, LM35_ReadRaw());
 
-        if (sensor_fault)
+        if (status.fault)
         {
             LCD_SetCursor(0, 0);
             LCD_Print("SENSOR FAULT    ");
             LCD_SetCursor(1, 0);
             LCD_Print("Check LM35      ");
-            /* Fail safe: warn if the sensor or ADC reading is invalid. */
-            alarm_active = 1;
-            LED_On();
-            Buzzer_On();
         }
         else
         {
             LCD_SetCursor(0, 0);
             LCD_Print("Temperature:    ");
             LCD_SetCursor(1, 0);
-            FormatTemperature(line, sizeof(line), temperature);
+            /* The alarm is decided from the same tenths value shown here,
+             * so "50.0 C" on the LCD always means the alarm threshold. */
+            TempLogic_FormatLine(line, sizeof(line), status.tenths);
             LCD_Print(line);
+        }
 
-            /* Hysteresis stops the buzzer chattering when the
-             * temperature sits right at the threshold. */
-            if (temperature >= LM35_ALARM_THRESHOLD_C)
-                alarm_active = 1;
-            else if (temperature < LM35_ALARM_THRESHOLD_C - LM35_ALARM_HYSTERESIS_C)
-                alarm_active = 0;
-
-            if (alarm_active)
-            {
-                LED_On();
-                Buzzer_On();
-            }
-            else
-            {
-                LED_Off();
-                Buzzer_Off();
-            }
+        if (status.alarm)
+        {
+            LED_On();
+            Buzzer_On();
+        }
+        else
+        {
+            LED_Off();
+            Buzzer_Off();
         }
 
         HAL_Delay(500);
@@ -153,24 +142,6 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
 {
     if (adcHandle->Instance == ADC1)
         __HAL_RCC_ADC1_CLK_ENABLE();
-}
-
-static void FormatTemperature(char *buffer, size_t buffer_size, float temperature)
-{
-    /* Use integer formatting so newlib-nano does not need printf float support.
-     * Clamp so an out-of-range value can never wrap or overflow the 16-char line. */
-    if (temperature < 0.0f) temperature = 0.0f;
-    if (temperature > 999.9f) temperature = 999.9f;
-    uint32_t tenths = (uint32_t)(temperature * 10.0f + 0.5f);
-    int len = snprintf(buffer, buffer_size, "%lu.%lu C",
-                       (unsigned long)(tenths / 10U),
-                       (unsigned long)(tenths % 10U));
-    if (len < 0)
-        len = 0;
-    /* Pad with spaces to the full LCD width so old characters are overwritten. */
-    for (size_t i = (size_t)len; i + 1U < buffer_size; ++i)
-        buffer[i] = ' ';
-    buffer[buffer_size - 1U] = '\0';
 }
 
 void Error_Handler(void)
