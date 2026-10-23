@@ -14,3 +14,7 @@ Release/
 # Firmware build output
 STM32_Project/build/
 third_party/
+
+# Python bytecode
+__pycache__/
+*.pyc
