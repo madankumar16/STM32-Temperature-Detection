@@ -75,6 +75,8 @@ jobs:
           test -f STM32_Project/STM32_Temperature.ioc
           test -f STM32_Project/Core/Src/stm32f1xx_it.c
           test -f STM32_Project/Makefile
+          test -f STM32_Project/App/temp_logic.c
+          test -f STM32_Project/App/temp_logic.h
       - name: Check project pin mapping and ADC configuration
         run: |
           grep -q 'ADC_CHANNEL_0' STM32_Project/Core/Src/main.c
@@ -82,6 +84,15 @@ jobs:
           grep -q 'LM35_ADC_MAX_VALUE' STM32_Project/App/temp_logic.h
           grep -q 'PA0.*ADC1_IN0' STM32_Project/STM32_Temperature.ioc
           grep -q 'PB0.*GPIO_Output (Buzzer)' STM32_Project/STM32_Temperature.ioc
+
+  host-unit-tests:
+    name: Host unit tests (temperature logic)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Build and run tests with gcc
+        run: make -C STM32_Project test
 
   stm32-firmware-syntax:
     name: STM32 firmware build

@@ -4,6 +4,7 @@
 #   git clone --depth 1 https://github.com/STMicroelectronics/cmsis_device_f1      ../third_party/device
 #   git clone --depth 1 https://github.com/ARM-software/CMSIS_5                    ../third_party/CMSIS_5
 #   make            # -> build/stm32_temperature.elf, .hex and .bin
+#   make test       # host unit tests for App/temp_logic.c (needs only gcc)
 #
 # Flash build/stm32_temperature.bin at 0x08000000 with ST-Link or STM32CubeProgrammer.
 
@@ -57,7 +58,19 @@ $(BUILD)/%.bin: $(BUILD)/%.elf
 $(BUILD):
 	mkdir -p $@
 
+# Host-side unit tests: plain gcc, no ARM toolchain or HAL needed.
+HOSTCC     ?= gcc
+HOST_BUILD  = $(BUILD)/host
+TEST_SRC    = ../tests/test_temp_logic.c App/temp_logic.c
+
+test: $(HOST_BUILD)/test_temp_logic
+	$(HOST_BUILD)/test_temp_logic
+
+$(HOST_BUILD)/test_temp_logic: $(TEST_SRC) App/temp_logic.h
+	mkdir -p $(HOST_BUILD)
+	$(HOSTCC) -std=c11 -Wall -Wextra -Werror -IApp $(TEST_SRC) -lm -o $@
+
 clean:
 	rm -rf $(BUILD)
 
-.PHONY: all clean
+.PHONY: all clean test
