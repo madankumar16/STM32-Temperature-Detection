@@ -104,10 +104,10 @@ This links a complete image (`build/stm32_temperature.bin`, about 11 KB) using S
 1. In **STM32CubeIDE**, create a project for **STM32F103C8T6**.
 2. Set **PA0** as ADC1 channel 0 (12-bit, software trigger).
 3. Set **PB0, PB1** and the LCD pins as GPIO outputs. Keep **PA13/PA14** free for SWD.
-4. Copy in `STM32_Project/Core/Src`, `STM32_Project/App` and the `STM32_Project/Drivers/*` folders, and add `App` and the driver folders to the include paths.
+4. Copy in `STM32_Project/Core/Src`, `STM32_Project/Core/Inc`, `STM32_Project/App` and the `STM32_Project/Drivers/*` folders, and add `App` and the driver folders to the include paths.
 5. Build, then flash with ST-Link.
 
-> `STM32_Temperature.ioc` is a human-readable pin reference, not a CubeMX-generated file. If your CubeIDE project already has `stm32f1xx_it.c`, keep only one copy of it.
+> `STM32_Temperature.ioc` is a human-readable pin reference, not a CubeMX-generated file. If your CubeIDE project already has `stm32f1xx_it.c` / `stm32f1xx_it.h`, keep only one copy of each.
 
 Either way, test the alarm on the real board before trusting it.
 
