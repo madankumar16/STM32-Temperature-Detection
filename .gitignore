@@ -10,3 +10,7 @@ Release/
 *.list
 *.d
 *.o
+
+# Firmware build output
+STM32_Project/build/
+third_party/
